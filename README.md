@@ -1,9 +1,12 @@
 # Distributed Proxy Rate Limiter (dprl)
+[![Go Reference](https://pkg.go.dev/badge/github.com/kotylevskiy/distributed-proxy-rate-limiter.svg)](https://pkg.go.dev/github.com/kotylevskiy/distributed-proxy-rate-limiter)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kotylevskiy/distributed-proxy-rate-limiter)](https://goreportcard.com/report/github.com/kotylevskiy/distributed-proxy-rate-limiter)
+
 
 An **HTTP(S) forward proxy** that enforces per-host concurrent connection limits. Run it
 as a local in-memory proxy for a single process, or as a distributed proxy fleet that
-shares limits through Redis. This is useful when multiple workers or services must
-throttle connections to the same upstreams without coordinating directly.
+shares limits through Redis. Good for protecting upstream APIs / services from overload 
+by many workers.
 
 The proxy **enforces a hard cap**. When a host is over its limit, new connections are
 rejected and the proxy returns **HTTP 500** for those requests.
@@ -11,16 +14,37 @@ rejected and the proxy returns **HTTP 500** for those requests.
 With `LOG_LEVEL=debug` enabled, the proxy can act as **a lightweight connection
 tracker** since it logs every outbound connection open/close event.
 
+Built on top of the `goproxy` component: https://github.com/elazarl/goproxy
 
 ## What it does
 
 - Acts as an HTTP/HTTPS forward proxy.
-- Tracks active outbound connections per host.
+- **Tracks and limits** active outbound connections per host.
 - **Returns 500** if per-host connection limit exeeded.
-- HTTPS connections **are not intercepted or MITM-ed**.
-- Enforces per-host concurrent limits locally or across multiple proxy instances.
+- Works both **standalone (in-memory)** and **distributed (Redis)**.
 - Uses Redis keys per host and per worker to compute a global limit in distributed mode.
-- Built on top of the `goproxy` component: https://github.com/elazarl/goproxy
+
+### What it does not
+
+* Not an HTTP “requests per second” rate limiter - it caps only connections, not requests.
+* Not an API gateway or L7 router.
+* Does not inspect or MITM HTTPS traffic.
+
+## Quick start
+
+Run a local proxy with a global per-host cap:
+
+```bash
+go install github.com/kotylevskiy/distributed-proxy-rate-limiter/cmd/dprl@latest
+
+dprl --port 8080 --max-connections 25
+```
+Or with Docker:
+
+```bash
+docker build -t dprl .
+docker run --rm -p 8080:8080 dprl --max-connections 25
+```
 
 ## Library usage (Go)
 
