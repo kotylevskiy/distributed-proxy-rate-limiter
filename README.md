@@ -30,6 +30,7 @@ Local in-memory limiter:
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
@@ -37,19 +38,26 @@ import (
 )
 
 func main() {
-	logger := slog.Default()
-	prl := dprl.NewProxyConnectionRateLimiter(8080, 20, logger)
-	prl.SetHostLimit("api.example.com", 5)
+	logger := slog.Default() // create logger for proxy internals
+	prl := dprl.NewProxyConnectionRateLimiter(
+		0, // 0 = auto port
+		20, // default max per host
+		logger // nil if you don't need it
+		) 
+	prl.SetHostLimit("api.example.com", 5) // per-host override
 
-	go func() { _ = prl.ListenAndServe() }()
+	if err := prl.Start(); err != nil { // start in background
+		panic(err)
+	}
+	defer func() { _ = prl.Stop(context.Background()) }() // graceful shutdown
 
-	proxyURL := prl.GetProxyURL()
+	proxyURL := prl.GetProxyURL() // actual proxy URL with auto-picked port
 	client := &http.Client{
 		Transport: &http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
+			Proxy: http.ProxyURL(proxyURL), // route requests through proxy
 		},
 	}
-	_, _ = client.Get("https://api.example.com/data")
+	_, _ = client.Get("https://api.example.com/data") // outbound request
 }
 ```
 
@@ -67,19 +75,21 @@ import (
 )
 
 func main() {
-	logger := slog.Default()
-	rOpts := &redis.Options{Addr: "127.0.0.1:6379"}
+	logger := slog.Default() // create logger for proxy internals
+	rOpts := &redis.Options{Addr: "127.0.0.1:6379"} // redis connection info
 
 	prl := dprl.NewDistributedProxyRateLimiter(
 		8080,       // proxy port
 		50,         // default max per host
 		rOpts,      // redis options
 		5*time.Minute, // safety TTL for worker counters
-		logger,
+		logger,     // logger instance
 	)
-	_ = prl.ListenAndServe()
+	_ = prl.ListenAndServe() // block and serve until shutdown
 }
 ```
+
+## Configuration scope
 
 Key APIs:
 
@@ -89,6 +99,11 @@ Key APIs:
 - `RemoveHostLimit(host string)`
 - `ActiveConnectionsForHost(host string)`
 - `Start()` / `Stop(ctx)` / `ListenAndServe()`
+
+> [!IMPORTANT]
+> Per-host limits are configured per proxy instance and are not shared via Redis.
+> Redis is only used for distributed counters, so each proxy must load the same
+> limits to enforce a consistent global cap.
 
 ## CLI usage
 
