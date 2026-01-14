@@ -1,6 +1,7 @@
 # Distributed Proxy Rate Limiter (dprl)
 [![Go Reference](https://pkg.go.dev/badge/github.com/kotylevskiy/distributed-proxy-rate-limiter.svg)](https://pkg.go.dev/github.com/kotylevskiy/distributed-proxy-rate-limiter)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kotylevskiy/distributed-proxy-rate-limiter)](https://goreportcard.com/report/github.com/kotylevskiy/distributed-proxy-rate-limiter)
+[![License](https://img.shields.io/github/license/kotylevskiy/go-sitemap-fetcher)](LICENSE)
 
 
 An **HTTP(S) forward proxy** that enforces per-host concurrent connection limits. Run it
